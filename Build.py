@@ -138,6 +138,31 @@ QJSFIXED = re.sub(r"export\s*\{.*\}","//EXPORTS arn't SUPPORTED",
                   .replace("import.meta.url",'""'),
                 flags = re.MULTILINE|re.DOTALL)
 
+# Polyfill Uint8Array.fromBase64 (ES2025) which QuickJS does not yet support.
+qjeval('''
+if (!Uint8Array.fromBase64) {
+  Uint8Array.fromBase64 = function(base64) {
+    var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    var lookup = {};
+    for (var i = 0; i < chars.length; i++) lookup[chars[i]] = i;
+    var clean = base64.replace(/[^A-Za-z0-9+/]/g, "");
+    var n = clean.length;
+    var bytes = new Uint8Array(Math.ceil(n * 3 / 4));
+    var j = 0;
+    for (var i = 0; i < n; i += 4) {
+      var a = lookup[clean[i]] || 0;
+      var b = lookup[clean[i + 1]] || 0;
+      var c = lookup[clean[i + 2]] || 0;
+      var d = lookup[clean[i + 3]] || 0;
+      bytes[j++] = (a << 2) | (b >> 4);
+      if (i + 2 < n) bytes[j++] = ((b & 15) << 4) | (c >> 2);
+      if (i + 3 < n) bytes[j++] = ((c & 3) << 6) | d;
+    }
+    return bytes.slice(0, j);
+  };
+}
+''')
+
 # print("\n".join(QJSFIXED.split("\n")[63152:63158]))
 qjeval(QJSFIXED)
 
@@ -157,7 +182,7 @@ qjeval("""
     function PintoraRender(e, t = "default", A = "Source Code Pro, sans-serif") {
       csrc.dataset.theme = t;
       var n = config;
-      if (n.core.defaultFontFamily = A, configApi.setConfig(n), runtime_default.setConfig(n), console = new ConsoleStub, csrc.innerText = e, pintoraStandalone.renderContentOf(csrc, {
+      if (n.core.defaultFontFamily = A, configApi.setConfig(n), console = new ConsoleStub, csrc.innerText = e, pintoraStandalone.renderContentOf(csrc, {
           resultContainer: rslt
         }), "" === rslt.innerHTML) throw errorString = "\\n " + String(console.warnHistory.slice(-1)), new Error(errorString);
       return rslt.firstChild.setAttribute("xmlns", "http://www.w3.org/2000/svg"), rslt.innerHTML
